@@ -3724,7 +3724,11 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
         }
         if (tempdir == 0){
 #ifndef __WIN32__
+#ifndef __ANDROID__
             tempdir = "/tmp";
+#else
+            tempdir = "/data/local/tmp";
+#endif
 #else
             tempdir = ""; // CWD
 #endif
