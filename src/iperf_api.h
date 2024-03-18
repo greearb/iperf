@@ -77,6 +77,7 @@ struct iperf_time;
 #define OPT_EXTRA_DATA 19
 #define OPT_BIDIRECTIONAL 20
 #define OPT_BIND_DEV 21
+#define OPT_TMP_DIR 22
 
 /* states */
 #define TEST_INIT 0
@@ -137,6 +138,7 @@ int	iperf_get_test_udp_counters_64bit( struct iperf_test* ipt );
 int	iperf_get_test_one_off( struct iperf_test* ipt );
 int iperf_get_test_tos( struct iperf_test* ipt );
 char*	iperf_get_extra_data( struct iperf_test* ipt );
+char*   iperf_get_tmp_dir( struct iperf_test *ipt );
 char*	iperf_get_iperf_version(void);
 int	iperf_get_test_no_delay( struct iperf_test* ipt );
 
@@ -162,6 +164,7 @@ void	iperf_set_test_repeating_payload( struct iperf_test* ipt, int repeating_pay
 void	iperf_set_test_role( struct iperf_test* ipt, char role );
 void	iperf_set_test_server_hostname( struct iperf_test* ipt, char* server_hostname );
 void    iperf_set_test_template( struct iperf_test *ipt, char *tmp_template );
+void    iperf_set_tmp_dir( struct iperf_test *ipt, char *tmpdir );
 void	iperf_set_test_reverse( struct iperf_test* ipt, int reverse );
 void	iperf_set_test_json_output( struct iperf_test* ipt, int json_output );
 int	iperf_has_zerocopy( void );
@@ -401,6 +404,7 @@ enum {
     IESETPACING= 140,       // Unable to set socket pacing rate
     IESETBUF2= 141,	    // Socket buffer size incorrect (written value != read value)
     IEAUTHTEST = 142,       // Test authorization failed
+    IETMPFILE = 143,        // Unable to write to tmp file (check perror)
     /* Stream errors */
     IECREATESTREAM = 200,   // Unable to create a new stream (check herror/perror)
     IEINITSTREAM = 201,     // Unable to initialize stream (check herror/perror)

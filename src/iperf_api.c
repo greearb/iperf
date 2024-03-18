@@ -320,6 +320,12 @@ iperf_get_test_extra_data(struct iperf_test *ipt)
     return ipt->extra_data;
 }
 
+char *
+iperf_get_tmp_dir(struct iperf_test *ipt)
+{
+    return ipt->tmpdir;
+}
+
 static const char iperf_version[] = IPERF_VERSION;
 char *
 iperf_get_iperf_version(void)
@@ -819,6 +825,7 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
         {"tos", required_argument, NULL, 'S'},
         {"dscp", required_argument, NULL, OPT_DSCP},
 	{"extra-data", required_argument, NULL, OPT_EXTRA_DATA},
+	{"tmpdir", required_argument, NULL, OPT_TMP_DIR},
 #if defined(HAVE_FLOWLABEL)
         {"flowlabel", required_argument, NULL, 'L'},
 #endif /* HAVE_FLOWLABEL */
@@ -1103,6 +1110,10 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
                 break;
 	    case OPT_EXTRA_DATA:
 		test->extra_data = strdup(optarg);
+		client_flag = 1;
+	        break;
+		case OPT_TMP_DIR:
+		test->tmpdir = strdup(optarg);
 		client_flag = 1;
 	        break;
             case 'L':
@@ -1926,6 +1937,8 @@ get_parameters(struct iperf_test *test)
 	    iperf_set_test_udp_counters_64bit(test, 1);
 	if ((j_p = cJSON_GetObjectItem(j, "repeating_payload")) != NULL)
 	    test->repeating_payload = 1;
+	if ((j_p = cJSON_GetObjectItem(j, "tmpdir")) != NULL)
+	    test->tmpdir = strdup(j_p->valuestring);
 #if defined(HAVE_SSL)
 	if ((j_p = cJSON_GetObjectItem(j, "authtoken")) != NULL)
         test->settings->authtoken = strdup(j_p->valuestring);
@@ -2402,6 +2415,7 @@ iperf_defaults(struct iperf_test *testp)
     CPU_ZERO(&testp->cpumask);
 #endif /* HAVE_CPUSET_SETAFFINITY */
     testp->title = NULL;
+    testp->tmpdir = NULL;
     testp->extra_data = NULL;
     testp->congestion = NULL;
     testp->congestion_used = NULL;
@@ -3727,7 +3741,19 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
 #ifndef __ANDROID__
             tempdir = "/tmp";
 #else
-            tempdir = "/data/local/tmp";
+            if (iperf_get_tmp_dir(test) != NULL) {
+                if (access(iperf_get_tmp_dir(test), W_OK) > 0) {
+                    tempdir = iperf_get_tmp_dir(test);
+                }
+                else {
+                    iperf_err(test, "Unable to write to tmp file.");
+                    i_errno  = IETMPFILE;
+                    return NULL;
+                }
+            }
+            else {
+                tempdir = "/data/local/tmp";
+            }
 #endif
 #else
             tempdir = ""; // CWD
