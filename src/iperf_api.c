@@ -1112,9 +1112,8 @@ iperf_parse_arguments(struct iperf_test *test, int argc, char **argv)
 		test->extra_data = strdup(optarg);
 		client_flag = 1;
 	        break;
-		case OPT_TMP_DIR:
+            case OPT_TMP_DIR:
 		test->tmpdir = strdup(optarg);
-		client_flag = 1;
 	        break;
             case 'L':
 #if defined(HAVE_FLOWLABEL)
