@@ -453,8 +453,10 @@ void iclosesocket(int s, struct iperf_test *test) {
         test->listener = -1;
     if (s == test->prot_listener)
         test->prot_listener = -1;
-    IFD_CLR(s, &test->read_set, test);
-    IFD_CLR(s, &test->write_set, test);
+    if (s >= 0) {
+        IFD_CLR(s, &test->read_set, test);
+        IFD_CLR(s, &test->write_set, test);
+    }
 }
 
 
