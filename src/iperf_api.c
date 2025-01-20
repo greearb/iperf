@@ -1483,7 +1483,7 @@ iperf_send(struct iperf_test *test, fd_set *write_setP)
 	    iperf_time_now(&now);
 	streams_active = 0;
 	SLIST_FOREACH(sp, &test->streams, streams) {
-	    if ((sp->green_light && sp->sender &&
+	    if ((sp->green_light && sp->sender && sp->socket >= 0 &&
 		 (write_setP == NULL || FD_ISSET(sp->socket, write_setP)))) {
 		if ((r = sp->snd(sp)) < 0) {
 		    if (r == NET_SOFTERROR)
