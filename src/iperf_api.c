@@ -3703,8 +3703,16 @@ iperf_free_stream(struct iperf_stream *sp)
     struct iperf_interval_results *irp, *nirp;
 
     /* XXX: need to free interval list too! */
-    munmap(sp->buffer, sp->test->settings->buflen);
-    close(sp->buffer_fd);
+    if (sp->buffer_fd == -1) {
+        if (sp->buffer_ram) {
+            free(sp->buffer_ram);
+        }
+    }
+    else {
+        munmap(sp->buffer, sp->test->settings->buflen);
+        close(sp->buffer_fd);
+    }
+
     if (sp->diskfile_fd >= 0) {
 	close(sp->diskfile_fd);
     }
@@ -3792,41 +3800,55 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
     
     /* Create and randomize the buffer */
     errno = 0;
+    if (sp->buffer_ram) {
+        sp->buffer = NULL;
+        free(sp->buffer_ram);
+        sp->buffer_ram = NULL;
+    }
+
     sp->buffer_fd = mkstemp(template);
     if (sp->buffer_fd == -1) {
-        iperf_err(test, "Failed to mkstemp %s (%s)", template, STRERROR);
-        i_errno = IECREATESTREAM;
-        free(sp->result);
-        free(sp);
-        return NULL;
+        // Use RAM buffer instead.
+        sp->buffer_ram = malloc(test->settings->buflen);
+        if (!sp->buffer_ram) {
+            iperf_err(test, "Failed to mkstemp %s (%s) and then failed to alloc: %d bytes for tmp buffer",
+                      template, STRERROR, test->settings->buflen);
+            i_errno = IECREATESTREAM;
+            free(sp->result);
+            free(sp);
+            return NULL;
+        }
+        sp->buffer = sp->buffer_ram;
     }
 
     // Windows will not allow one to unlink an open file, unfortunately.
+    if (sp->buffer_fd != -1) {
 #ifndef __WIN32__
-    errno = 0;
-    if (unlink(template) < 0) {
-        iperf_err(test, "Failed to unlink temp file: %s (%s)", template, STRERROR);
-        i_errno = IECREATESTREAM;
-        free(sp->result);
-        free(sp);
-        return NULL;
-    }
+        errno = 0;
+        if (unlink(template) < 0) {
+            iperf_err(test, "Failed to unlink temp file: %s (%s)", template, STRERROR);
+            i_errno = IECREATESTREAM;
+            free(sp->result);
+            free(sp);
+            return NULL;
+        }
 #endif
     
-    if (ftruncate(sp->buffer_fd, test->settings->buflen) < 0) {
-        iperf_err(test, "Failed to truncate, fd: %d  buflen: %d", sp->buffer_fd, test->settings->buflen);
-        i_errno = IECREATESTREAM;
-        free(sp->result);
-        free(sp);
-        return NULL;
-    }
-    sp->buffer = (char *) mmap(NULL, test->settings->buflen, PROT_READ|PROT_WRITE, MAP_PRIVATE, sp->buffer_fd, 0);
-    if (sp->buffer == MAP_FAILED) {
-        iperf_err(test, "Failed to mmap.");
-        i_errno = IECREATESTREAM;
-        free(sp->result);
-        free(sp);
-        return NULL;
+        if (ftruncate(sp->buffer_fd, test->settings->buflen) < 0) {
+            iperf_err(test, "Failed to truncate, fd: %d  buflen: %d", sp->buffer_fd, test->settings->buflen);
+            i_errno = IECREATESTREAM;
+            free(sp->result);
+            free(sp);
+            return NULL;
+        }
+        sp->buffer = (char *) mmap(NULL, test->settings->buflen, PROT_READ|PROT_WRITE, MAP_PRIVATE, sp->buffer_fd, 0);
+        if (sp->buffer == MAP_FAILED) {
+            iperf_err(test, "Failed to mmap.");
+            i_errno = IECREATESTREAM;
+            free(sp->result);
+            free(sp);
+            return NULL;
+        }
     }
 
     /* Set socket */
@@ -3839,10 +3861,7 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
 	sp->diskfile_fd = open(test->diskfile_name, sender ? O_RDONLY : (O_WRONLY|O_CREAT|O_TRUNC), S_IRUSR|S_IWUSR);
 	if (sp->diskfile_fd == -1) {
 	    i_errno = IEFILE;
-            munmap(sp->buffer, sp->test->settings->buflen);
-            free(sp->result);
-            free(sp);
-	    return NULL;
+            goto err_exit;
 	}
         sp->snd2 = sp->snd;
 	sp->snd = diskfile_send;
@@ -3858,15 +3877,24 @@ iperf_new_stream(struct iperf_test *test, int s, int sender)
         ret = readentropy(sp->buffer, test->settings->buflen);
 
     if ((ret < 0) || (iperf_init_stream(sp, test) < 0)) {
-        close(sp->buffer_fd);
-        munmap(sp->buffer, sp->test->settings->buflen);
-        free(sp->result);
-        free(sp);
-        return NULL;
+        goto err_exit;
     }
     iperf_add_stream(test, sp);
 
     return sp;
+
+err_exit:
+    if (sp->buffer_fd == -1) {
+        free(sp->buffer_ram);
+        sp->buffer_ram = NULL;
+    }
+    else {
+        munmap(sp->buffer, sp->test->settings->buflen);
+        close(sp->buffer_fd);
+    }
+    free(sp->result);
+    free(sp);
+    return NULL;
 }
 
 /**************************************************************************/
