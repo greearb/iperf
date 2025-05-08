@@ -57,7 +57,9 @@
 #endif /* HAVE_CPUSET_SETAFFINITY */
 
 #if defined(HAVE_SETPROCESSAFFINITYMASK)
+#ifndef WIN64
 #include <Windows.h>
+#endif
 #endif /* HAVE_SETPROCESSAFFINITYMASK */
 
 #include "net.h"
