@@ -363,6 +363,7 @@ iperf_connect(struct iperf_test *test)
     }
 
     IFD_SET(test->ctrl_sck, &test->read_set, test);
+	IFD_SET(test->genhelper_sck, &test->read_set, test);
 
     int opt;
     socklen_t len;
@@ -502,6 +503,7 @@ iperf_run_client(struct iperf_test * test)
         int ran_timers = 0;
 	memcpy(&read_set, &test->read_set, sizeof(fd_set));
 	memcpy(&write_set, &test->write_set, sizeof(fd_set));
+
 	iperf_time_now(&now);
 	timeout = tmr_timeout(&now);
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
@@ -516,6 +518,16 @@ iperf_run_client(struct iperf_test * test)
 		}
 		IFD_CLR(test->ctrl_sck, &read_set, test);
 	    }
+	}
+
+    if (result > 0 && test->genhelper_sck >=0) {
+		if (FD_ISSET(test->genhelper_sck, &read_set)) {
+			char buf;
+			if (recv(test->genhelper_sck, &buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1) {
+				iperf_client_end(test);
+				return -17;
+			}
+		}
 	}
 
 	if (test->state == TEST_RUNNING) {

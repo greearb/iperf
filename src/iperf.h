@@ -341,6 +341,7 @@ struct iperf_test
     FILE     *outfile;
 
     int       ctrl_sck;
+    int       genhelper_sck;        /* used to coordinate threads on iOS */
     int       listener;
     int       prot_listener;
 
