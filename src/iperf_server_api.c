@@ -104,8 +104,9 @@ iperf_server_listen(struct iperf_test *test)
     FD_ZERO(&test->read_set);
     FD_ZERO(&test->write_set);
     IFD_SET(test->listener, &test->read_set, test);
-	IFD_SET(test->genhelper_sck, &test->read_set, test);
-
+#ifndef __WIN32__
+    IFD_SET(test->genhelper_sck, &test->read_set, test);
+#endif
     return 0;
 }
 
@@ -530,13 +531,14 @@ iperf_run_server(struct iperf_test *test)
 			// Since we run iperf_run_server in a loop, the endpoint will
 			// continue to run in perpetuity. When genhelper triggers the
 			// test to stop, it sends us a single byte to trigger shutdown
+#ifndef __WIN32__
 			if (test->genhelper_sck >= 0 && FD_ISSET(test->genhelper_sck, &read_set)) {
                 char buf;
                 if (recv(test->genhelper_sck, &buf, 1, MSG_DONTWAIT) == 1) {
 				    return -9;
                 }
 			}
-
+#endif
             if (test->state == CREATE_STREAMS) {
                 if (test->prot_listener >= 0 && FD_ISSET(test->prot_listener, &read_set)) {
     

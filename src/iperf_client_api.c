@@ -363,8 +363,9 @@ iperf_connect(struct iperf_test *test)
     }
 
     IFD_SET(test->ctrl_sck, &test->read_set, test);
+#ifndef __WIN32__
 	IFD_SET(test->genhelper_sck, &test->read_set, test);
-
+#endif
     int opt;
     socklen_t len;
 
@@ -520,6 +521,7 @@ iperf_run_client(struct iperf_test * test)
 	    }
 	}
 
+#ifndef __WIN32__
     if (result > 0 && test->genhelper_sck >=0) {
 		if (FD_ISSET(test->genhelper_sck, &read_set)) {
 			char buf;
@@ -529,7 +531,7 @@ iperf_run_client(struct iperf_test * test)
 			}
 		}
 	}
-
+#endif
 	if (test->state == TEST_RUNNING) {
 
 	    /* Is this our first time really running? */
